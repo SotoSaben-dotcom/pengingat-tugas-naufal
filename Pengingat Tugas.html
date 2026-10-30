@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengingat Tugas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef2f1; --surface:#ffffff; --ink:#14232b; --muted:#5d6f77; --line:#d3dcda;
+  --accent:#1f5eff; --accent-ink:#ffffff; --soon:#c46a00; --soon-bg:#fff2de;
+  --late:#c0262d; --late-bg:#fde8e8; --ok:#1d7a4d; --ok-bg:#e3f4ea;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1a1f; --surface:#17262d; --ink:#e8f0f2; --muted:#93a8b0; --line:#2a3d46;
+    --accent:#6b94ff; --accent-ink:#0b1220; --soon:#ffb454; --soon-bg:#3a2a12;
+    --late:#ff8087; --late-bg:#3b1a1d; --ok:#5fd39a; --ok-bg:#133024;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  line-height:1.5; min-height:100vh;
+}
+.wrap{max-width:720px; margin:0 auto; padding:32px 18px 64px}
+h1{font-size:clamp(2rem,6vw,3rem); font-weight:800; letter-spacing:-.03em; line-height:1.05; margin:0 0 6px}
+.sub{color:var(--muted); margin:0 0 24px}
+
+.notice{
+  display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  background:var(--surface); border:1px solid var(--line); border-radius:12px;
+  padding:12px 14px; margin-bottom:20px; font-size:.95rem;
+}
+.notice.ok{border-color:var(--ok); background:var(--ok-bg)}
+.notice.bad{border-color:var(--late); background:var(--late-bg)}
+
+form{
+  background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  padding:18px; display:grid; gap:14px; grid-template-columns:1fr 1fr;
+}
+form .full{grid-column:1/-1}
+label{display:grid; gap:6px; font-size:.9rem; font-weight:600}
+input,select{
+  font:inherit; color:var(--ink); background:var(--bg);
+  border:1px solid var(--line); border-radius:8px; padding:10px 12px; width:100%;
+}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+button{
+  font:inherit; font-weight:600; cursor:pointer; border-radius:8px;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink); padding:9px 14px;
+}
+button.primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+button:hover{filter:brightness(.95)}
+
+.bar{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin:28px 0 12px}
+.tabs{display:flex; gap:6px}
+.tabs button{padding:6px 12px; font-size:.9rem}
+.tabs button[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.count{color:var(--muted); font-size:.9rem}
+
+ul{list-style:none; margin:0; padding:0; display:grid; gap:10px}
+li{
+  background:var(--surface); border:1px solid var(--line); border-left:6px solid var(--line);
+  border-radius:12px; padding:14px; display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:start;
+}
+li.soon{border-left-color:var(--soon)}
+li.late{border-left-color:var(--late)}
+li.done{border-left-color:var(--ok); opacity:.72}
+li input[type=checkbox]{width:22px; height:22px; margin-top:2px; accent-color:var(--ok); cursor:pointer}
+.title{font-weight:600; font-size:1.05rem; overflow-wrap:anywhere}
+li.done .title{text-decoration:line-through}
+.meta{color:var(--muted); font-size:.88rem; margin-top:2px}
+.chip{
+  display:inline-block; margin-top:8px; padding:2px 10px; border-radius:99px;
+  font-size:.82rem; font-weight:600; background:var(--bg); color:var(--muted);
+}
+.soon .chip{background:var(--soon-bg); color:var(--soon)}
+.late .chip{background:var(--late-bg); color:var(--late)}
+.done .chip{background:var(--ok-bg); color:var(--ok)}
+.del{padding:6px 10px; font-size:.85rem; color:var(--late)}
+.empty{
+  text-align:left; color:var(--muted); background:var(--surface);
+  border:1px dashed var(--line); border-radius:12px; padding:22px;
+}
+
+#toasts{position:fixed; right:16px; bottom:16px; display:grid; gap:8px; max-width:min(92vw,340px); z-index:10}
+.toast{
+  background:var(--ink); color:var(--bg); padding:12px 14px; border-radius:10px; font-size:.92rem;
+  box-shadow:0 6px 24px rgba(0,0,0,.25);
+}
+[hidden]{display:none!important}
+.nav{display:flex; gap:6px; margin:0 0 16px}
+.nav button[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.snd{display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:.9rem; margin:-8px 0 18px; color:var(--muted)}
+.snd button{padding:5px 10px; font-size:.85rem}
+.snd input{width:auto; max-width:230px; padding:4px; font-size:.85rem}
+.day h2{font-size:1.1rem; margin:22px 0 8px}
+.day.today h2::after{content:" (hari ini)"; color:var(--accent)}
+.cls{background:var(--surface); border:1px solid var(--line); border-left:6px solid var(--accent); border-radius:12px; padding:12px 14px; margin-bottom:8px}
+.cls b{font-size:1.02rem}
+.opt{display:flex; flex-direction:row; align-items:center; gap:8px; font-weight:400}
+.opt input{width:auto}
+@media (max-width:520px){ form{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:no-preference){
+  li{animation:in .25s ease-out}
+  @keyframes in{from{opacity:0; transform:translateY(-4px)}}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Pengingat Tugas</h1>
+  <p class="sub">Catat tugas, tentukan deadline, dan dapatkan notifikasi sebelum waktunya habis.</p>
+
+  <div id="notice" class="notice" role="status"></div>
+  <div class="snd">
+    <span>Suara notifikasi:</span>
+    <input id="sndFile" type="file" accept="audio/*" aria-label="Pilih file lagu notifikasi">
+    <button type="button" id="sndTest">Coba suara</button>
+    <button type="button" id="sndReset">Pakai suara helikopter bawaan</button>
+  </div>
+  <div class="nav">
+    <button type="button" data-v="vTugas" aria-pressed="true">Tugas</button>
+    <button type="button" data-v="vJadwal" aria-pressed="false">Jadwal kuliah</button>
+  </div>
+  <section id="vTugas">
+
+  <form id="form" autocomplete="off">
+    <label class="full">Nama tugas
+      <input id="title" type="text" maxlength="120" placeholder="Contoh: Kirim laporan mingguan" required>
+    </label>
+    <label>Deadline (opsional, kosongkan jika tugas bebas)
+      <input id="deadline" type="datetime-local">
+    </label>
+    <label>Ingatkan sebelum
+      <select id="lead">
+        <option value="5">5 menit</option>
+        <option value="15">15 menit</option>
+        <option value="30">30 menit</option>
+        <option value="60" selected>1 jam</option>
+        <option value="180">3 jam</option>
+        <option value="1440">1 hari</option>
+      </select>
+    </label>
+    <div class="full"><button class="primary" type="submit">Tambah tugas</button></div>
+  </form>
+
+  <div class="bar">
+    <div class="tabs" role="group" aria-label="Filter tugas">
+      <button type="button" data-f="all" aria-pressed="true">Semua</button>
+      <button type="button" data-f="active" aria-pressed="false">Belum selesai</button>
+      <button type="button" data-f="done" aria-pressed="false">Selesai</button>
+    </div>
+    <span class="count" id="count"></span>
+  </div>
+
+  <ul id="list" aria-live="polite"></ul>
+  <p style="margin-top:16px"><button type="button" id="clearDone">Hapus semua yang selesai</button>
+    <button type="button" id="expTugas">Ekspor tugas ke kalender (.ics)</button></p>
+  </section>
+  <section id="vJadwal" hidden>
+    <label class="opt"><input type="checkbox" id="clsOn" checked> Ingatkan 1 jam sebelum kuliah dimulai</label>
+    <p><button type="button" class="primary" id="expKuliah">Ekspor jadwal kuliah ke kalender (.ics)</button></p>
+    <div id="sched"></div>
+  </section>
+</main>
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "pengingat-tugas:v1";
+  var tasks = load();
+  var filter = "all";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var listEl = $("list"), noticeEl = $("notice");
+
+  /* ---------- Penyimpanan ---------- */
+  function load(){
+    try { var d = JSON.parse(localStorage.getItem(KEY)); return Array.isArray(d) ? d : []; }
+    catch(e){ return []; }
+  }
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify(tasks)); }
+    catch(e){ toast("Gagal menyimpan ke penyimpanan lokal."); }
+  }
+
+  /* ---------- Notifikasi ---------- */
+  function notifSupported(){ return "Notification" in window; }
+
+  function renderNotice(){
+    noticeEl.className = "notice";
+    noticeEl.innerHTML = "";
+    var text = document.createElement("span");
+    if(!notifSupported()){
+      text.textContent = "Browser ini tidak mendukung notifikasi. Pengingat hanya tampil di dalam halaman.";
+      noticeEl.appendChild(text); return;
+    }
+    var p = Notification.permission;
+    if(p === "granted"){
+      noticeEl.classList.add("ok");
+      text.textContent = "Notifikasi aktif. Biarkan tab ini tetap terbuka agar pengingat berjalan.";
+      noticeEl.appendChild(text);
+    } else if(p === "denied"){
+      noticeEl.classList.add("bad");
+      text.textContent = "Notifikasi diblokir. Izinkan lewat pengaturan situs di browser Anda.";
+      noticeEl.appendChild(text);
+    } else {
+      text.textContent = "Aktifkan notifikasi untuk menerima pop-up saat deadline mendekat.";
+      var b = document.createElement("button");
+      b.className = "primary"; b.type = "button"; b.textContent = "Aktifkan notifikasi";
+      b.onclick = askPermission;
+      noticeEl.appendChild(text); noticeEl.appendChild(b);
+    }
+  }
+
+  function askPermission(){
+    var r = Notification.requestPermission();
+    if(r && r.then){ r.then(renderNotice); } else { Notification.requestPermission(renderNotice); }
+  }
+
+  function notify(title, body, tag){
+    toast(title + " — " + body);
+    playAlarm();
+    if(notifSupported() && Notification.permission === "granted"){
+      try { new Notification(title, { body: body, tag: tag }); } catch(e){}
+    }
+  }
+
+  function toast(msg){
+    var t = document.createElement("div");
+    t.className = "toast"; t.textContent = msg;
+    $("toasts").appendChild(t);
+    setTimeout(function(){ t.remove(); }, 6000);
+  }
+
+  /* ---------- Pengecekan deadline ---------- */
+  function check(){
+    var now = Date.now(), changed = false;
+    tasks.forEach(function(t){
+      if(t.done || t.deadline == null) return;
+      var left = t.deadline - now;
+      if(left <= 0 && !t.nLate){
+        t.nLate = t.nSoon = true; changed = true;
+        notify("Deadline terlewat", t.title, "late-" + t.id);
+      } else if(left > 0 && left <= t.lead * 60000 && !t.nSoon){
+        t.nSoon = true; changed = true;
+        notify("Deadline mendekat", t.title + " (" + human(left) + " lagi)", "soon-" + t.id);
+      }
+    });
+    if(changed) save();
+    checkClasses();
+    render();
+  }
+
+  /* ---------- Format ---------- */
+  function human(ms){
+    var m = Math.round(Math.abs(ms) / 60000);
+    if(m < 1) return "kurang dari 1 menit";
+    if(m < 60) return m + " menit";
+    var h = Math.floor(m / 60);
+    if(h < 24) return h + " jam " + (m % 60 ? (m % 60) + " menit" : "");
+    var d = Math.floor(h / 24);
+    return d + " hari " + (h % 24 ? (h % 24) + " jam" : "");
+  }
+  function fmtDate(ts){
+    return new Date(ts).toLocaleString("id-ID", { weekday:"short", day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+  }
+
+  /* ---------- Render ---------- */
+  function render(){
+    var now = Date.now();
+    var shown = tasks.filter(function(t){
+      return filter === "all" || (filter === "done" ? t.done : !t.done);
+    }).sort(function(a, b){ return (a.done - b.done) || ((a.deadline || 9e15) - (b.deadline || 9e15)); });
+
+    listEl.innerHTML = "";
+    if(!shown.length){
+      var e = document.createElement("li");
+      e.className = "empty";
+      e.style.display = "block";
+      e.textContent = filter === "done" ? "Belum ada tugas yang selesai." : "Belum ada tugas. Isi formulir di atas untuk menambahkan yang pertama.";
+      listEl.appendChild(e);
+    }
+    shown.forEach(function(t){
+      var left = t.deadline - now, cls = "", label;
+      if(t.done){ cls = "done"; label = "Selesai"; }
+      else if(t.deadline == null){ label = "Tanpa deadline"; }
+      else if(left <= 0){ cls = "late"; label = "Terlambat " + human(left); }
+      else if(left <= t.lead * 60000){ cls = "soon"; label = "Sisa " + human(left); }
+      else { label = "Sisa " + human(left); }
+
+      var li = document.createElement("li");
+      li.className = cls;
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = t.done;
+      cb.setAttribute("aria-label", "Tandai selesai: " + t.title);
+      cb.onchange = function(){ t.done = cb.checked; save(); render(); };
+
+      var body = document.createElement("div");
+      var ti = document.createElement("div"); ti.className = "title"; ti.textContent = t.title;
+      var me = document.createElement("div"); me.className = "meta"; me.textContent = t.deadline == null ? "Tugas bebas, tanpa batas waktu" : fmtDate(t.deadline);
+      var ch = document.createElement("span"); ch.className = "chip"; ch.textContent = label;
+      body.appendChild(ti); body.appendChild(me); body.appendChild(ch);
+
+      var del = document.createElement("button");
+      del.className = "del"; del.type = "button"; del.textContent = "Hapus";
+      del.setAttribute("aria-label", "Hapus tugas: " + t.title);
+      del.onclick = function(){
+        tasks = tasks.filter(function(x){ return x.id !== t.id; });
+        save(); render();
+      };
+
+      li.appendChild(cb); li.appendChild(body); li.appendChild(del);
+      listEl.appendChild(li);
+    });
+
+    var active = tasks.filter(function(t){ return !t.done; }).length;
+    $("count").textContent = active + " belum selesai dari " + tasks.length + " tugas";
+  }
+
+  /* ---------- Event ---------- */
+  $("form").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var title = $("title").value.trim();
+    var dv = $("deadline").value;
+    var dl = dv ? new Date(dv).getTime() : null;
+    if(!title){ toast("Isi nama tugas."); return; }
+    tasks.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title: title, deadline: dl, lead: parseInt($("lead").value, 10),
+      done: false, nSoon: false, nLate: false
+    });
+    save();
+    $("title").value = ""; $("deadline").value = "";
+    if(notifSupported() && Notification.permission === "default") askPermission();
+    check();
+    $("title").focus();
+  });
+
+  document.querySelectorAll(".tabs button").forEach(function(b){
+    b.addEventListener("click", function(){
+      filter = b.dataset.f;
+      document.querySelectorAll(".tabs button").forEach(function(x){
+        x.setAttribute("aria-pressed", x === b ? "true" : "false");
+      });
+      render();
+    });
+  });
+
+  $("clearDone").addEventListener("click", function(){
+    tasks = tasks.filter(function(t){ return !t.done; });
+    save(); render();
+  });
+
+  /* ---------- Jadwal kuliah (d: 1=Senin ... 4=Kamis) ---------- */
+  var DAYS = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+  var COURSES = [
+    {n:"Ekonometrika Lanjutan", k:"D", sks:3, d:3, s:"07:00", e:"09:30", r:"FEBI-501", dos:"Dr. Taosige Wau, S.E., M.Si."},
+    {n:"Ekonomi Data Sains", k:"C", sks:3, d:1, s:"07:00", e:"09:30", r:"FEBI-502", dos:"Yasmin, M.Sc."},
+    {n:"Ekonomi Industri", k:"D", sks:3, d:2, s:"07:00", e:"09:30", r:"FEBI-402", dos:"Aninta Gina Sharfina, S.E., M.E"},
+    {n:"Etika dan Pengembangan Profesionalisme", k:"B", sks:2, d:1, s:"12:30", e:"14:10", r:"FEBI-302", dos:"Dhiyaul Aulia Zulni, M.E."},
+    {n:"Filantropi Islam", k:"D", sks:3, d:3, s:"15:15", e:"17:45", r:"FEBI-501", dos:"Aninta Gina Sharfina, S.E., M.E"},
+    {n:"Keuangan Negara dan Daerah", k:"A", sks:3, d:1, s:"15:15", e:"17:45", r:"FEBI-401", dos:"Ayu Kurnia Fatmawati, S.Pd., M.E."},
+    {n:"Perekonomian Indonesia", k:"C", sks:3, d:4, s:"09:45", e:"12:15", r:"FEBI-501", dos:"Dr. H. Muh. Rudi Nugroho, S.E., M.Sc."},
+    {n:"Praktikum Ekonometrika", k:"D", sks:1, d:4, s:"12:30", e:"14:10", r:"FEBI-414", dos:"Muhammad Dedat Dingkoroci Akasumbawa, ME."},
+    {n:"Praktikum Pasar Modal", k:"C", sks:1, d:2, s:"09:45", e:"11:25", r:"FEBI-414", dos:"Rizqi Umar Al-Hashfi, SEI., M.Sc."}
+  ];
+  var SENT_KEY = "pengingat-tugas:kuliah-terkirim", ON_KEY = "pengingat-tugas:kuliah-aktif";
+
+  function renderSchedule(){
+    var box = $("sched"), today = new Date().getDay();
+    box.innerHTML = "";
+    [1,2,3,4,5,6,0].forEach(function(d){
+      var items = COURSES.filter(function(c){ return c.d === d; })
+        .sort(function(a, b){ return a.s < b.s ? -1 : 1; });
+      if(!items.length) return;
+      var day = document.createElement("div");
+      day.className = "day" + (d === today ? " today" : "");
+      var h = document.createElement("h2"); h.textContent = DAYS[d]; day.appendChild(h);
+      items.forEach(function(c){
+        var card = document.createElement("div"); card.className = "cls";
+        var t = document.createElement("b"); t.textContent = c.n;
+        var m1 = document.createElement("div"); m1.className = "meta";
+        m1.textContent = c.s + "–" + c.e + " | Ruang " + c.r + " | Kelas " + c.k + " | " + c.sks + " SKS";
+        var m2 = document.createElement("div"); m2.className = "meta"; m2.textContent = c.dos;
+        card.appendChild(t); card.appendChild(m1); card.appendChild(m2); day.appendChild(card);
+      });
+      box.appendChild(day);
+    });
+  }
+
+  function checkClasses(){
+    if(!$("clsOn").checked) return;
+    var now = new Date(), sent = {};
+    try { sent = JSON.parse(localStorage.getItem(SENT_KEY)) || {}; } catch(e){}
+    var changed = false;
+    COURSES.forEach(function(c, i){
+      if(c.d !== now.getDay()) return;
+      var p = c.s.split(":");
+      var start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +p[0], +p[1]);
+      var left = start - now, k = now.toDateString() + "|" + i;
+      if(left > 0 && left <= 3600000 && !sent[k]){
+        sent[k] = 1; changed = true;
+        notify("Kuliah " + human(left) + " lagi", c.n + " pukul " + c.s + ", ruang " + c.r, "kuliah-" + k);
+      }
+    });
+    if(changed){
+      try { localStorage.setItem(SENT_KEY, JSON.stringify(sent)); } catch(e){}
+    }
+  }
+
+  /* ---------- Suara notifikasi ---------- */
+  var SND_KEY = "pengingat-tugas:lagu";
+  function playAlarm(){
+    var src = null;
+    try { src = localStorage.getItem(SND_KEY); } catch(e){}
+    if(src){
+      var a = new Audio(src);
+      var pr = a.play();
+      if(pr && pr.catch) pr.catch(chopper);
+    } else { chopper(); }
+  }
+  // Suara baling-baling helikopter buatan (Web Audio), dipakai jika belum ada lagu
+  function chopper(){
+    try {
+      var ac = new (window.AudioContext || window.webkitAudioContext)(), dur = 6;
+      var buf = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate), d = buf.getChannelData(0);
+      for(var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      var src = ac.createBufferSource(); src.buffer = buf;
+      var lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 450;
+      var pulse = ac.createGain(); pulse.gain.value = 0.5;
+      var lfo = ac.createOscillator(); lfo.type = "square";
+      lfo.frequency.setValueAtTime(7, ac.currentTime);
+      lfo.frequency.linearRampToValueAtTime(13, ac.currentTime + 3);
+      var depth = ac.createGain(); depth.gain.value = 0.5;
+      lfo.connect(depth); depth.connect(pulse.gain);
+      var master = ac.createGain();
+      master.gain.setValueAtTime(0.05, ac.currentTime);
+      master.gain.linearRampToValueAtTime(1, ac.currentTime + 3);
+      master.gain.linearRampToValueAtTime(0, ac.currentTime + dur);
+      src.connect(lp); lp.connect(pulse); pulse.connect(master); master.connect(ac.destination);
+      src.start(); lfo.start(); lfo.stop(ac.currentTime + dur);
+    } catch(e){}
+  }
+
+  $("sndFile").addEventListener("change", function(){
+    var f = this.files[0]; if(!f) return;
+    if(f.size > 3.5 * 1024 * 1024){ toast("File terlalu besar (maks sekitar 3,5 MB). Pakai potongan lagu yang lebih pendek."); return; }
+    var r = new FileReader();
+    r.onload = function(){
+      try { localStorage.setItem(SND_KEY, r.result); toast("Lagu notifikasi disimpan."); playAlarm(); }
+      catch(e){ toast("Gagal menyimpan lagu. Coba file yang lebih kecil."); }
+    };
+    r.readAsDataURL(f);
+  });
+  $("sndTest").addEventListener("click", playAlarm);
+  $("sndReset").addEventListener("click", function(){
+    try { localStorage.removeItem(SND_KEY); } catch(e){}
+    $("sndFile").value = ""; toast("Memakai suara helikopter bawaan.");
+  });
+
+  document.querySelectorAll(".nav button").forEach(function(b){
+    b.addEventListener("click", function(){
+      document.querySelectorAll(".nav button").forEach(function(x){
+        x.setAttribute("aria-pressed", x === b ? "true" : "false");
+        $(x.dataset.v).hidden = x !== b;
+      });
+    });
+  });
+  $("clsOn").checked = localStorage.getItem(ON_KEY) !== "0";
+  $("clsOn").addEventListener("change", function(){
+    try { localStorage.setItem(ON_KEY, this.checked ? "1" : "0"); } catch(e){}
+    checkClasses();
+  });
+
+  /* ---------- Ekspor ke kalender (.ics) ---------- */
+  var BY = ["SU","MO","TU","WE","TH","FR","SA"];
+  function pad(n){ return (n < 10 ? "0" : "") + n; }
+  function icsEsc(t){ return String(t).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n"); }
+  function icsFold(l){ var o = []; while(l.length > 70){ o.push(l.slice(0, 70)); l = " " + l.slice(70); } o.push(l); return o.join("\r\n"); }
+  function utc(ts){
+    var d = new Date(ts);
+    return d.getUTCFullYear() + pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) + "T" +
+      pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + "Z";
+  }
+  function localStamp(d, hm){ return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "T" + hm.replace(":", "") + "00"; }
+  function alarm(min, text){
+    return ["BEGIN:VALARM", "TRIGGER:" + (min ? "-PT" + min + "M" : "PT0M"), "ACTION:DISPLAY", "DESCRIPTION:" + icsEsc(text), "END:VALARM"];
+  }
+  function downloadICS(name, events){
+    var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Pengingat Tugas//ID", "CALSCALE:GREGORIAN"].concat(events, ["END:VCALENDAR"]);
+    var text = L.map(icsFold).join("\r\n") + "\r\n";
+    var done = function(){ toast("File diunduh. Buka file tersebut lalu pilih Tambahkan ke Kalender."); };
+    var direct = function(){
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type: "text/calendar;charset=utf-8" })); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000); done();
+    };
+    if(window.claude && window.claude.use){
+      window.claude.use("downloads").then(function(dl){
+        if(!dl){ toast("Unduhan tidak tersedia di halaman ini. Buka file HTML aslinya untuk mengekspor."); return; }
+        dl.save({ filename: name, data: text }).then(done).catch(function(e){
+          if(e && e.code === "declined") return;
+          toast("Format .ics tidak bisa disimpan dari halaman ini. Buka file HTML aslinya untuk mengekspor.");
+        });
+      }).catch(direct);
+    } else { direct(); }
+  }
+
+  $("expKuliah").addEventListener("click", function(){
+    var ev = [], stamp = utc(Date.now());
+    COURSES.forEach(function(c, i){
+      var base = new Date();
+      base.setDate(base.getDate() + (c.d - base.getDay() + 7) % 7);
+      ev = ev.concat(["BEGIN:VEVENT", "UID:kuliah-" + i + "@pengingat-tugas", "DTSTAMP:" + stamp,
+        "DTSTART:" + localStamp(base, c.s), "DTEND:" + localStamp(base, c.e),
+        "RRULE:FREQ=WEEKLY;COUNT=16;BYDAY=" + BY[c.d],
+        "SUMMARY:" + icsEsc("Kuliah: " + c.n), "LOCATION:" + icsEsc("Ruang " + c.r),
+        "DESCRIPTION:" + icsEsc("Kelas " + c.k + ", " + c.sks + " SKS. Dosen: " + c.dos)],
+        alarm(60, "Kuliah 1 jam lagi: " + c.n), ["END:VEVENT"]);
+    });
+    downloadICS("jadwal-kuliah.ics", ev);
+  });
+
+  $("expTugas").addEventListener("click", function(){
+    var ev = [], stamp = utc(Date.now());
+    tasks.forEach(function(t){
+      if(t.done || t.deadline == null) return;
+      ev = ev.concat(["BEGIN:VEVENT", "UID:tugas-" + t.id + "@pengingat-tugas", "DTSTAMP:" + stamp,
+        "DTSTART:" + utc(t.deadline), "DTEND:" + utc(t.deadline + 15 * 60000),
+        "SUMMARY:" + icsEsc("Deadline: " + t.title)],
+        alarm(t.lead, "Deadline mendekat: " + t.title), alarm(0, "Deadline sekarang: " + t.title), ["END:VEVENT"]);
+    });
+    if(!ev.length){ toast("Belum ada tugas belum selesai yang punya deadline."); return; }
+    downloadICS("tugas.ics", ev);
+  });
+
+  /* ---------- Mulai ---------- */
+  renderSchedule();
+  renderNotice();
+  check();
+  setInterval(check, 30000);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden) check(); });
+})();
+</script>
+</body>
+</html>
